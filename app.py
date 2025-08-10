@@ -18,7 +18,7 @@ if not GOOGLE_API_KEY:
     st.error("Please set your GOOGLE_API_KEY in a .env file")
     st.stop()
 
-genai.configure(api_key=GOOGLE_API_KEY)
+
 
 embedding_model = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
 
@@ -33,10 +33,10 @@ if not os.path.exists(faiss_file) and not os.path.exists(pkl_file):
     print("Creating a new FAISS store...")
     docs = ["Python is a programming language.", 
             "FAISS is a library for efficient similarity search."]
-    faiss_store = FAISS.from_texts(docs, embedding=embedding_model)
-    faiss_store.save_local(VECTOR_STORE_DIR)    
+    st.session_state.faiss_store = FAISS.from_texts(docs, embedding=embedding_model)
+    st.session_state.faiss_store.save_local(VECTOR_STORE_DIR)    
 else:
-    faiss_store = FAISS.load_local(
+    st.session_state.faiss_store = FAISS.load_local(
         VECTOR_STORE_DIR,  # folder where index is saved
         embedding_model,
         allow_dangerous_deserialization=True)
@@ -71,29 +71,62 @@ def store_vector_from_text(text, file_name, doc_id):
     new_docs = [
         Document(page_content = chunk, metadata={"source": file_name, "doc_id": f"{doc_id}_chunk_{idx}"}) for idx, chunk in enumerate(splited_text)    
     ]
-    faiss_store.add_documents(new_docs)
-    faiss_store.save_local("FAISS_store") 
+    st.session_state.faiss_store.add_documents(new_docs)
+    st.session_state.faiss_store.save_local("FAISS_store") 
 
 def retrive_context(query, k=3):
     """Retrieve context from the vector store based on the query."""
-    docs = faiss_store.similarity_search(query, k=k)
+    docs = st.session_state.faiss_store.similarity_search(query, k=k)
     return "\n".join([doc.page_content for doc in docs])
+
+def document_summary(text):
+    """Generate a summary of the document."""
+    llm = ChatGoogleGenerativeAI(
+        model="gemini-2.0-flash",
+        google_api_key=GOOGLE_API_KEY,
+        temperature=0.2
+    )
+    prompt_template = PromptTemplate(
+        input_variables=["text"],
+        template="""
+        You are a legal consultant. Summarize the following document:
+        {text}
+        """
+    )
+    chain = (
+        RunnableMap({
+            "text": lambda x: x["text"]
+        })
+        | prompt_template
+        | llm
+        | StrOutputParser()
+    )
+
+    summary = chain.invoke({
+        "text": text
+    })
+
+    return summary
 
 def main():
     """Main function to run the Streamlit app."""
     st.set_page_config(page_title="Legal Document Review Application", layout="wide")
     st.title("Legal Document Review Application")
-
+    st.sidebar.title("API key")
+    api_key = st.sidebar.text_input("Enter your Google API Key", type="password", value=GOOGLE_API_KEY, key="api_key_input")
+    genai.configure(api_key=GOOGLE_API_KEY)
     col1, col2 = st.columns(2)
     with col1:
-        st.header("Legal Querstion")
+        st.header("Legal Question")
         legal_query = st.text_area("Enter Legal Queries", height=300)
         if st.button("Analyze your query"):
-            if legal_query is not None:
+            if not api_key.strip():
+                st.error("Please enter your Google API Key in the sidebar.")                
+            elif legal_query is not None :
                 context_docs = retrive_context(legal_query)
                 llm = ChatGoogleGenerativeAI(
                     model="gemini-2.0-flash",
-                    google_api_key=GOOGLE_API_KEY,
+                    google_api_key=api_key,
                     temperature=0.2
                 )
                 prompt_template = PromptTemplate(
@@ -133,14 +166,31 @@ def main():
             
     with col2:
         st.header("Upload Legal Document")
-        uploaded_file = st.file_uploader("Upload a document", type=["pdf"]) 
-        if st.button("Store Document to vector store"):
-            if uploaded_file is not None:
-                text = get_text_from_pdf(uploaded_file)
-                store_vector_from_text(text, uploaded_file.name, doc_id=os.path.splitext(uploaded_file.name)[0])
-                st.success("Document stored successfully.")
-            else:
-                st.error("Please upload a document.")
-         
+        uploaded_file = st.file_uploader("Upload a document", type=["pdf","txt"])   
+        col1, col2, col3 = st.columns(3)
+        if uploaded_file is not None:
+            with col1:
+                preview_clicked = st.button("Preview Document")                   
+            with col2:
+                 store_clicked = st.button("Store Document to vector store")                   
+            with col3:            
+                summary_clicked = st.button("Document summary")                  
+            if preview_clicked:
+                 text = get_text_from_pdf(uploaded_file)
+                 st.markdown( f"""
+                        <div style="height:300px; overflow-y:auto; border:1px solid #ccc; padding:10px;">
+                            {text}
+                        </div>
+                    """,
+                    unsafe_allow_html=True)
+            if store_clicked:
+                 text = get_text_from_pdf(uploaded_file)               
+                 store_vector_from_text(text, uploaded_file.name, doc_id=os.path.splitext(uploaded_file.name)[0])
+                 st.success("Document stored successfully.")
+            if summary_clicked:
+                summary = document_summary(get_text_from_pdf(uploaded_file))
+                st.header("Document Summary")
+                st.markdown(summary)
+
 if __name__ == "__main__":
     main()

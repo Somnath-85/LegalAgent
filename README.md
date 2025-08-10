@@ -86,6 +86,8 @@ Usage
 - Upload document in PDF formats
 - Extract and store file embedding into FAISS store
 - Run similarity search on FAISS store using a query
+- Preview uploaded document
+- Generate a summary of a document using gemini LLM
 - Pass relavant context and query to gemini LLM to analyse it
 - Dislay analysis on a UI
 - View structured AI-generated feedback
