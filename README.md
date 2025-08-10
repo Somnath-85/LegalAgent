@@ -19,7 +19,7 @@ Building a Legal document review Application using LangChain and Streamlit, wher
 - Analyze the document using Google’s Gemini 2.0 Flash model to get a detaied analysis.
 
 
-The application uses LangChain document loaders (PyPDFLoader) to extract text from legal documents, and LangChain’s LLMChain with a custom prompt to generate a structured analysis. Streamlit provides a user-friendly interface with custom styling for better readability.
+The application uses LangChain document loaders (PyPDFLoader) to extract text from legal documents, vectorise the text, store it into FAISS store and LangChain’s LLMChain with a custom prompt to generate a structured analysis. Streamlit provides a user-friendly interface with custom styling for better readability.
 
 Project Structure
 - app.py: Main application code for the legal document review Application.
@@ -68,25 +68,28 @@ Deploy the App:
 - Once deployed, access the app via the provided URL (e.g., https://your-app-name.streamlit.app).
 
 Test the Deployed App:
-- Input job requirements, upload a resume, and analyze it.
-- Verify that the analysis report is generated and downloadable.
+- Upload legal documents and store it into FAISS store
+- Input legal queries and analyze it.
+- Verify that the analysis report is generated.
 
 Requirements
 The requirements.txt file includes all necessary dependencies.
 
 Usage
 - Run the app locally or access the deployed version on Streamlit Cloud.
-- Enter requirements in the text area (e.g., skills, experience, qualifications).
+- Enter queries in the text area (e.g., Deed, agreement).
 - Upload a document in PDF format.
-- Click “Analyze document” to generate the AI-driven analysis.
+- Click “Analyze your query” to generate the AI-driven analysis.
 
 ## 🚀 Features
 
 - Upload document in PDF formats
-- Extract and analyze document content using Google Gemini model
-- Store analysis results in a FAISS vector store
+- Extract and store file embedding into FAISS store
+- Run similarity search on FAISS store using a query
+- Pass relavant context and query to gemini LLM to analyse it
+- Dislay analysis on a UI
 - View structured AI-generated feedback
-- Download analysis as a text report
+
 
 ---
 
@@ -96,7 +99,7 @@ Usage
 - **LangChain Expression Language (LCEL)** for modular pipeline workflows
 - **Streamlit** for the frontend web interface
 - **Google Generative AI** (Gemini & Embeddings) for LLM and vector representations
-- **Chroma** as a persistent vector store
+- **FAISS store** as a persistent vector store
 - **dotenv** for API key and environment config
 
 ---
@@ -136,7 +139,7 @@ Usage
 
 ```plaintext
 ├── app.py                  # Main Streamlit app
-├── chroma_store/           # Folder to store vector DB files
+├── FAISS_store/            # Folder to store vector DB files
 ├── .env                    # Contains API key (not committed)
 ├── requirements.txt        # Python dependencies
 └── README.md               # This file
@@ -150,7 +153,7 @@ Usage
 * 📄 **Document Loaders**: PDF, DOCX, TXT via LangChain community
 * ✂️ **Text Splitting**: RecursiveCharacterTextSplitter
 * 🧠 **Embeddings**: GoogleGenerativeAIEmbeddings
-* 🗃️ **Vector DB**: Chroma for persistent storage
+* 🗃️ **Vector DB**: FAISS for persistent storage
 * 🧩 **LCEL**: RunnableMap, pipes (`|`), and chain composition
 * 🧪 **Chains**: Custom chain for job/resume comparison
 * 📤 **Deployment**: Streamlit as the UI layer
@@ -161,16 +164,15 @@ Usage
 
 ```
 Structured Analysis:
-- Strengths: Relevant experience, strong communication, etc.
+- Strengths: Relevant details etc.
 - Weaknesses: Lacks X, missing Y...
 
-Suitability Score: 84%
 ```
 
 ---
 
 ## 🧑‍💼 Ideal For
 
-* HR professionals and recruiters
-* Resume screening automation tools
+* Lawyer and legal consultant
+* Legal document screening automation tools
 * Educational and project demos for LangChain and LCEL
